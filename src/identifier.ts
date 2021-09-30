@@ -91,6 +91,10 @@ export class Identifier extends bufio.Struct {
     return new this().fromHex(str)
   }
 
+  static fromBase64(str: string): Identifier {
+    return new this().fromBase64(str)
+  }
+
   /**
    * Utility for encoding the Identifier into a buffer based on version
    * @param {bufio.BufferWriter} bw - Buffer writer for creating an Identifier Buffer

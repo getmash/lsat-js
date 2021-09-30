@@ -1,7 +1,9 @@
 import { expect } from 'chai'
 
-import * as Macaroon from "macaroon";
-import { Caveat, Lsat, parseChallengePart } from '../src'
+import { randomBytes } from 'crypto'
+import * as Macaroon from 'macaroon'
+
+import { Identifier, Caveat, Lsat, parseChallengePart } from '../src'
 import { testChallenges, invoice, goMacaroonChallenge } from './data'
 import { getTestBuilder } from './utilities'
 import { getIdFromRequest, decode } from '../src/helpers'
@@ -280,5 +282,53 @@ describe('LSAT Token', () => {
 
     const addInvalidInv = (): void => lsat.addInvoice('12345')
     expect(addInvalidInv).to.throw()
+  })
+
+  it('should be able to parse utf8 id from macaroon', () => {
+    const paymentHash = getIdFromRequest(invoice.payreq)
+
+    const identifier = new Identifier({
+      paymentHash: Buffer.from(paymentHash, 'hex'),
+      tokenId: randomBytes(32),
+    })
+
+    const mac = Macaroon.newMacaroon({
+      version: 1,
+      rootKey: 'secret',
+      identifier: identifier.toString(),
+      location: 'location',
+    })
+
+    const result = Lsat.getIdentifierFromMacaroon(
+      Macaroon.bytesToBase64(mac._exportBinaryV2())
+    )
+
+    expect(result).to.not.throw
+    expect(result).to.not.be.null
+    expect(result?.toString()).to.equal(identifier.toString())
+  })
+
+  it('should be able to parse b64 id from macaroon', () => {
+    const paymentHash = getIdFromRequest(invoice.payreq)
+
+    const identifier = new Identifier({
+      paymentHash: Buffer.from(paymentHash, 'hex'),
+      tokenId: randomBytes(32),
+    })
+
+    const mac = Macaroon.newMacaroon({
+      version: 2,
+      rootKey: 'secret',
+      identifier: identifier.encode(),
+      location: 'location',
+    })
+
+    const result = Lsat.getIdentifierFromMacaroon(
+      Macaroon.bytesToBase64(mac._exportBinaryV2())
+    )
+
+    expect(result).to.not.throw
+    expect(result).to.not.be.null
+    expect(result?.toString()).to.equal(identifier.toString())
   })
 })
