@@ -300,13 +300,23 @@ export class Lsat extends bufio.Struct {
   // Static API
 
   /**
+   * @description Retrieve identifier from macaroon
+   * @param {string} macaroon macaroon to parse and retrieve identifier from
+   * @returns {string | null}
+   */
+  static getIdentifierFromMacaroon(macaroon: string): string | null {
+    const macJSON = Macaroon.importMacaroon(macaroon)._exportAsJSONObjectV2()
+    return macJSON.i || macJSON.i64 || null
+  }
+
+  /**
    * @description generates a new LSAT from an invoice and an optional invoice
    * @param {string} macaroon - macaroon to parse and generate relevant lsat properties from
    * @param {string} [invoice] - optional invoice which can provide other relevant information for the lsat
    */
   static fromMacaroon(macaroon: string, invoice?: string): Lsat {
     assert(typeof macaroon === 'string', 'Requires a raw macaroon string for macaroon to generate LSAT')
-    const identifier = Macaroon.importMacaroon(macaroon)._exportAsJSONObjectV2().i
+    const identifier = Lsat.getIdentifierFromMacaroon(macaroon)
     let id: Identifier
     try {
       if (identifier == undefined) {
@@ -409,15 +419,10 @@ export class Lsat extends bufio.Struct {
       'Expected WWW-Authenticate challenge with macaroon and invoice data'
     )
   
-    const paymentHash = getIdFromRequest(invoice)
-    let identifier
-    const mac = Macaroon.importMacaroon(macaroon)
-    identifier = mac._exportAsJSONObjectV2().i
+    const paymentHash = getIdFromRequest(invoice)    
+    const identifier = Lsat.getIdentifierFromMacaroon(macaroon)
     if (identifier == undefined){
-      identifier = mac._exportAsJSONObjectV2().i64
-      if (identifier == undefined){
-        throw new Error(`Problem parsing macaroon identifier`)
-      }
+      throw new Error(`Problem parsing macaroon identifier`)
     }
 
     return new this({
