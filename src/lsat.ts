@@ -300,21 +300,34 @@ export class Lsat extends bufio.Struct {
   // Static API
 
   /**
+   * @description Retrieve identifier from macaroon
+   * @param {string} macaroon macaroon to parse and retrieve identifier from
+   * @returns {Identifier | null}
+   */
+  static getIdentifierFromMacaroon(macaroon: string): Identifier | null {
+    const { i, i64 } = Macaroon.importMacaroon(macaroon)._exportAsJSONObjectV2();
+    if (i) {
+        return Identifier.fromString(i)
+    }
+    if (i64) {
+      return Identifier.fromBase64(i64)
+    }
+    return null
+  }
+
+  /**
    * @description generates a new LSAT from an invoice and an optional invoice
    * @param {string} macaroon - macaroon to parse and generate relevant lsat properties from
    * @param {string} [invoice] - optional invoice which can provide other relevant information for the lsat
    */
   static fromMacaroon(macaroon: string, invoice?: string): Lsat {
     assert(typeof macaroon === 'string', 'Requires a raw macaroon string for macaroon to generate LSAT')
-    const identifier = Macaroon.importMacaroon(macaroon)._exportAsJSONObjectV2().i
-    let id: Identifier
+    let id;
     try {
-      if (identifier == undefined) {
-        throw new Error(
-            `macaroon identifier undefined`
-        )
+      id = Lsat.getIdentifierFromMacaroon(macaroon);
+      if (!id) {
+          throw new Error(`macaroon identifier undefined`);
       }
-      id = Identifier.fromString(identifier)
     } catch (e) {
       throw new Error(
         `Unexpected encoding for macaroon identifier: ${e.message}`
@@ -322,7 +335,7 @@ export class Lsat extends bufio.Struct {
     }
 
     const options: LsatOptions = {
-      id: identifier,
+      id: id.toString(),
       baseMacaroon: macaroon,
       paymentHash: id.paymentHash.toString('hex'),
     }
@@ -409,19 +422,14 @@ export class Lsat extends bufio.Struct {
       'Expected WWW-Authenticate challenge with macaroon and invoice data'
     )
   
-    const paymentHash = getIdFromRequest(invoice)
-    let identifier
-    const mac = Macaroon.importMacaroon(macaroon)
-    identifier = mac._exportAsJSONObjectV2().i
-    if (identifier == undefined){
-      identifier = mac._exportAsJSONObjectV2().i64
-      if (identifier == undefined){
-        throw new Error(`Problem parsing macaroon identifier`)
-      }
+    const paymentHash = getIdFromRequest(invoice)    
+    const identifier = Lsat.getIdentifierFromMacaroon(macaroon)
+    if (!identifier){
+      throw new Error(`Problem parsing macaroon identifier`)
     }
 
     return new this({
-      id: identifier,
+      id: identifier.toString(),
       baseMacaroon: macaroon,
       paymentHash,
       invoice: invoice,
